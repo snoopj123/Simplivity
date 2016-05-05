@@ -12,24 +12,29 @@ Add-Type @"
     }
 "@
 
-function Get-AccessToken()
+function Get-AccessToken
 {
-    $url = "https://10.20.4.143/api/oauth/token"
-    $base64 = [Convert]::ToBase64String([System.Text.UTF8Encoding]::UTF8.GetBytes("simplivity:"))
-    $cred = Get-Credential
-    $username = $cred.UserName
-    $pass_word = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($cred.Password))
-    $body = @{username="$username";password="$pass_word";grant_type="password"}
-    $headers = @{}
-    $headers.Add("Authorization", "Basic $base64")
-    $headers.Add("Accept", "application/json")
-    $ret_token = Invoke-RestMethod -Uri $url -Headers $headers -Body $body -Method Post
-    $global:Token = $ret_token.access_token
+    param([string]$IP)
+    process
+    {
+        $url = "https://" + $IP + "/api/oauth/token"
+        $base64 = [Convert]::ToBase64String([System.Text.UTF8Encoding]::UTF8.GetBytes("simplivity:"))
+        $cred = Get-Credential
+        $username = $cred.UserName
+        $pass_word = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($cred.Password))
+        $body = @{username="$username";password="$pass_word";grant_type="password"}
+        $headers = @{}
+        $headers.Add("Authorization", "Basic $base64")
+        $headers.Add("Accept", "application/json")
+        $ret_token = Invoke-RestMethod -Uri $url -Headers $headers -Body $body -Method Post
+        $global:IPAddress = $IP
+        $global:Token = $ret_token.access_token
+    }
 }
 
 function Get-OmniVM([string]$VMName)
 {
-    $url = "https://10.20.4.143/api/virtual_machines"
+    $url = "https://" + $IPAddress + "/api/virtual_machines"
     $header = @{}
     $header.Add("Authorization", "Bearer $Token")
     $header.Add("Accept", "application/json")
@@ -47,7 +52,7 @@ function Clone-OmniVM
     [string]$VMName)
     process
     {
-        $url = "https://10.20.4.143/api/virtual_machines/" + $_ + "/clone"
+        $url = "https://" + $IPAddress + "/api/virtual_machines/" + $_ + "/clone"
         $header = @{}
         $header.Add("Authorization", "Bearer $Token")
         $header.Add("Accept", "application/json")
@@ -68,10 +73,6 @@ function Clone-OmniVM
 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 [System.Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-Get-AccessToken
+Get-AccessToken -IP 10.20.4.145
 
-#$vm_id = Get-OmniVM $token "Jon1"
-#$clone_job = Clone-OmniVM $token $vm_id "Jon54321"
-
-$test = Get-OmniVM -VMName Jon1 | Clone-OmniVM -VMName "Jon54321"
-#$test = Get-OmniVM $token "Jon1" | Clone-OmniVM2 -Token $token -VMName "Jon54321"
+$test = Get-OmniVM -VMName Jon1 | Clone-OmniVM -VMName Jon54321
