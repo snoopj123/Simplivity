@@ -25,7 +25,6 @@ function Get-AccessToken()
     $headers.Add("Accept", "application/json")
     $ret_token = Invoke-RestMethod -Uri $url -Headers $headers -Body $body -Method Post
     $global:Token = $ret_token.access_token
-    #return $ret_token.access_token
 }
 
 function Get-OmniVM([string]$VMName)
