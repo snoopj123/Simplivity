@@ -53,8 +53,8 @@
         Username = $username
         Token = $response.access_token
         SignedCertificates = $SignedCertificates
+        Credential = $cred
     }
-
 }
 
 function Get-OmniStackVM
@@ -66,8 +66,8 @@ function Get-OmniStackVM
     [CmdletBinding()]
 
     param(
-    [Parameter(Mandatory=$true,ParameterSetName="VMName")]
-    [string]$VMName
+    [Parameter(Mandatory=$true,ParameterSetName="Name")]
+    [string]$Name
     )
 
     $uri = $($Global:OmniStackConnection.Server) + "/api/virtual_machines"
@@ -76,7 +76,7 @@ function Get-OmniStackVM
     $header.Add("Accept", "application/json")
     $body = @{}
     $body.Add("show_optional_fields", "false")
-    $body.Add("name", "$VMName")
+    $body.Add("name", "$Name")
     $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Get
     $omniVM = @()
     $c = New-Object System.Object
@@ -95,4 +95,73 @@ function Get-OmniStackVM
     $omniVM | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.VirtualMachine") }
 
     return $omniVM
+}
+
+function Clone-OmniStackVM
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+    param(
+    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
+    [psobject]$VM,
+    [Parameter(Mandatory=$true,ParameterSetName="Name")]
+    [string]$Name
+    )
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/virtual_machines/" + $($VM.ID) + "/clone"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $header.Add("Content-Type", "application/vnd.simplivity.v1+json")
+    $body = @{}
+    $body.Add("app_consistent", "false")
+    $body.Add("virtual_machine_name", "$Name")
+    $body = $body | ConvertTo-Json
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Post
+    $omniTask = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.task.id
+    $c | Add-Member -Type NoteProperty -Name State -Value $response.task.state
+    $c | Add-Member -Type NoteProperty -Name AffectedObjects -Value $response.task.affected_objects
+    $c | Add-Member -Type NoteProperty -Name ErrorCode -Value $response.task.error_code
+    $c | Add-Member -Type NoteProperty -Name StartTime -Value $response.task.start_time
+    $c | Add-Member -Type NoteProperty -Name EndTime -Value $response.task.end_time
+    $omniTask += $c
+    $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
+
+    return $omniTask
+}
+
+function Get-OmniStackTask
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+    param(
+    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
+    [psobject]$Task
+    )
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/tasks/" + $($Task.ID)
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Method Get
+    $omniTask = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.task.id
+    $c | Add-Member -Type NoteProperty -Name State -Value $response.task.state
+    $c | Add-Member -Type NoteProperty -Name AffectedObjects -Value $response.task.affected_objects
+    $c | Add-Member -Type NoteProperty -Name ErrorCode -Value $response.task.error_code
+    $c | Add-Member -Type NoteProperty -Name StartTime -Value $response.task.start_time
+    $c | Add-Member -Type NoteProperty -Name EndTime -Value $response.task.end_time
+    $omniTask += $c
+    $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
+
+    return $omniTask
 }

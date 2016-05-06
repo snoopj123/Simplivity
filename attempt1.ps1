@@ -42,8 +42,8 @@ function Get-OmniVM([string]$VMName)
     $body.Add("show_optional_fields", "false")
     $body.Add("name", "$VMName")
     $result = Invoke-RestMethod -Uri $url -Headers $header -Body $body -Method Get
-    #return $result.virtual_machines.id
-    return $result
+    return $result.virtual_machines.id
+    #return $result
 }
 
 function Clone-OmniVM
@@ -63,7 +63,8 @@ function Clone-OmniVM
         $body.Add("virtual_machine_name", "$VMName")
         $body = $body | ConvertTo-Json
         $result = Invoke-RestMethod -Uri $url -Headers $header -Body $body -Method Post
-        return $result.task.id
+        #return $result.task.id
+        return $result
     }
 }
 
@@ -76,6 +77,6 @@ function Clone-OmniVM
 
 Get-AccessToken -IP 10.20.4.145
 
-#$test = Get-OmniVM -VMName Jon1 | Clone-OmniVM -VMName Jon54321
+$test = Get-OmniVM -VMName Jon1 | Clone-OmniVM -VMName Jon54321
 
-$test = Get-OmniVM -VMName Jon1
+#$test = Get-OmniVM -VMName Jon1
