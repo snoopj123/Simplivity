@@ -66,7 +66,7 @@ function Get-OmniStackVM
     [CmdletBinding()]
 
     param(
-    [Parameter(Mandatory=$true,ParameterSetName="Name")]
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
     [string]$Name
     )
 
@@ -79,25 +79,28 @@ function Get-OmniStackVM
     $body.Add("name", "$Name")
     $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Get
     $omniVM = @()
-    $c = New-Object System.Object
-    $c | Add-Member -Type NoteProperty -Name ID -Value $response.virtual_machines.id
-    $c | Add-Member -Type NoteProperty -Name Name -Value $response.virtual_machines.name
-    $c | Add-Member -Type NoteProperty -Name State -Value $response.virtual_machines.state
-    $c | Add-Member -Type NoteProperty -Name CreatedAt -Value $response.virtual_machines.created_at
-    $c | Add-Member -Type NoteProperty -Name DatastoreID -Value $response.virtual_machines.datastore_id
-    $c | Add-Member -Type NoteProperty -Name DatastoreName -Value $response.virtual_machines.datastore_name
-    $c | Add-Member -Type NoteProperty -Name PolicyID -Value $response.virtual_machines.policy_id
-    $c | Add-Member -Type NoteProperty -Name PolicyName -Value $response.virtual_machines.policy_name
-    $c | Add-Member -Type NoteProperty -Name HypervisorID -Value $response.virtual_machines.hypervisor_object_id
-    $c | Add-Member -Type NoteProperty -Name OmniStackClusterID -Value $response.virtual_machines.omnistack_cluster_id
-    $c | Add-Member -Type NoteProperty -Name OmniStackClusterName -Value $response.virtual_machines.omnistack_cluster_name
-    $omniVM += $c
+    foreach ($vm in $response.virtual_machines)
+    {
+        $c = New-Object System.Object
+        $c | Add-Member -Type NoteProperty -Name ID -Value $vm.id
+        $c | Add-Member -Type NoteProperty -Name Name -Value $vm.name
+        $c | Add-Member -Type NoteProperty -Name State -Value $vm.state
+        $c | Add-Member -Type NoteProperty -Name CreatedAt -Value $vm.created_at
+        $c | Add-Member -Type NoteProperty -Name DatastoreID -Value $vm.datastore_id
+        $c | Add-Member -Type NoteProperty -Name DatastoreName -Value $vm.datastore_name
+        $c | Add-Member -Type NoteProperty -Name PolicyID -Value $vm.policy_id
+        $c | Add-Member -Type NoteProperty -Name PolicyName -Value $vm.policy_name
+        $c | Add-Member -Type NoteProperty -Name HypervisorID -Value $vm.hypervisor_object_id
+        $c | Add-Member -Type NoteProperty -Name OmniStackClusterID -Value $vm.omnistack_cluster_id
+        $c | Add-Member -Type NoteProperty -Name OmniStackClusterName -Value $vm.omnistack_cluster_name
+        $omniVM += $c
+    }
     $omniVM | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.VirtualMachine") }
 
     return $omniVM
 }
 
-function Clone-OmniStackVM
+function Copy-OmniStackVM
 {
 <#
 
