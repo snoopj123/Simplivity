@@ -54,7 +54,7 @@
         Token = $response.access_token
         Refresh = $response.refresh_token
         SignedCertificates = $SignedCertificates
-        Credential = $cred
+        #Credential = $cred
     }
 }
 
