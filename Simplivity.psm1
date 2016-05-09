@@ -11,10 +11,10 @@
     [String]$Server,
 
     [parameter(Mandatory=$false)]
-    [switch]$IgnoreCertRequirements
+    [switch]$IgnoreCertReqs
     )
 
-    if ($PSBoundParameters.ContainsKey("IgnoreCertRequirements"))
+    if ($PSBoundParameters.ContainsKey("IgnoreCertReqs"))
     {
         if ( -not ("TrustAllCertsPolicy" -as [type]))
         {
@@ -52,6 +52,7 @@
         Server = "https://$($Server)"
         Username = $username
         Token = $response.access_token
+        Refresh = $response.refresh_token
         SignedCertificates = $SignedCertificates
         Credential = $cred
     }
@@ -167,4 +168,21 @@ function Get-OmniStackTask
     $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
 
     return $omniTask
+}
+
+function Redo-OmniStackToken
+{
+<#
+#>
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/oauth/token"
+    $body = @{grant_type="refresh_token";refresh_token="$($Global:OmniStackConnection.Refresh)"}
+    $base64 = [Convert]::ToBase64String([System.Text.UTF8Encoding]::UTF8.GetBytes("simplivity:"))
+    $headers = @{}
+    $headers.Add("Authorization", "Basic $base64")
+    $headers.Add("Accept", "application/json")
+
+    $response = Invoke-RestMethod -Uri $uri -Headers $headers -Body $body -Method Post
+
+    $Global:OmniStackConnection.Token = $response.access_token
 }
