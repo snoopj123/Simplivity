@@ -1,4 +1,9 @@
-﻿function Connect-OmniStack
+﻿<#
+-----------------------------------------------------------------------------
+GENERAL FUNCTIONS
+-----------------------------------------------------------------------------
+#>
+function Connect-OmniStack
 {
 <#
 
@@ -56,6 +61,29 @@
         SignedCertificates = $SignedCertificates
     }
 }
+
+function Redo-OmniStackToken
+{
+<#
+#>
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/oauth/token"
+    $body = @{grant_type="refresh_token";refresh_token="$($Global:OmniStackConnection.Refresh)"}
+    $base64 = [Convert]::ToBase64String([System.Text.UTF8Encoding]::UTF8.GetBytes("simplivity:"))
+    $headers = @{}
+    $headers.Add("Authorization", "Basic $base64")
+    $headers.Add("Accept", "application/json")
+
+    $response = Invoke-RestMethod -Uri $uri -Headers $headers -Body $body -Method Post
+
+    $Global:OmniStackConnection.Token = $response.access_token
+}
+
+<#
+-----------------------------------------------------------------------------
+VIRTUAL MACHINE FUNCTIONS
+-----------------------------------------------------------------------------
+#>
 
 function Get-OmniStackVM
 {
@@ -152,6 +180,12 @@ function Copy-OmniStackVM
     return $omniTask
 }
 
+<#
+-----------------------------------------------------------------------------
+TASK FUNCTIONS
+-----------------------------------------------------------------------------
+#>
+
 function Get-OmniStackTask
 {
 <#
@@ -183,19 +217,3 @@ function Get-OmniStackTask
     return $omniTask
 }
 
-function Redo-OmniStackToken
-{
-<#
-#>
-
-    $uri = $($Global:OmniStackConnection.Server) + "/api/oauth/token"
-    $body = @{grant_type="refresh_token";refresh_token="$($Global:OmniStackConnection.Refresh)"}
-    $base64 = [Convert]::ToBase64String([System.Text.UTF8Encoding]::UTF8.GetBytes("simplivity:"))
-    $headers = @{}
-    $headers.Add("Authorization", "Basic $base64")
-    $headers.Add("Accept", "application/json")
-
-    $response = Invoke-RestMethod -Uri $uri -Headers $headers -Body $body -Method Post
-
-    $Global:OmniStackConnection.Token = $response.access_token
-}
