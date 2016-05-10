@@ -37,7 +37,7 @@
     else { $SignedCertificates = $true }
 
     [System.Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $cred = Get-Credential
+    $cred = $host.ui.PromptForCredential("Enter in your OmniStack Credentials", "Enter in your username & password.", "", "")
     $username = $cred.UserName
     $pass_word = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($cred.Password))
     $uri = "https://" + $Server + "/api/oauth/token"
@@ -54,7 +54,6 @@
         Token = $response.access_token
         Refresh = $response.refresh_token
         SignedCertificates = $SignedCertificates
-        #Credential = $cred
     }
 }
 
@@ -78,7 +77,21 @@ function Get-OmniStackVM
     $body = @{}
     $body.Add("show_optional_fields", "false")
     $body.Add("name", "$Name")
-    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Get
+
+    try
+    {
+        $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Get
+    }
+    catch
+    {
+        if ($_.Exception.Message -match "401")
+        {   
+            Redo-OmniStackToken
+            $header.Remove("Authorization")
+            $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+            $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Get
+        }
+    }
     $omniVM = @()
     foreach ($vm in $response.virtual_machines)
     {
