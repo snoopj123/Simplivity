@@ -267,6 +267,44 @@ function Get-OmniStackDatastores
     return $omniDS
 }
 
+function Get-OmniStackDatastore
+{
+<#
+#>
+
+
+    [CmdletBinding()]
+
+    param(
+    [Parameter(Mandatory=$false,ValueFromPipeline=$true)]
+    [psobject]$VM
+    )
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/datastores/" + $($VM.DatastoreID)
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Method Get
+    $omniDatastore = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.datastore.id
+    $c | Add-Member -Type NoteProperty -Name Name -Value $response.datastore.name
+    $c | Add-Member -Type NoteProperty -Name Deleted -Value $response.datastore.deleted
+    $c | Add-Member -Type NoteProperty -Name Size -Value $response.datastore.size
+    $c | Add-Member -Type NoteProperty -Name Shares -Value $response.datastore.shares
+    $c | Add-Member -Type NoteProperty -Name ClusterID -Value $response.datastore.omnistack_cluster_id
+    $c | Add-Member -Type NoteProperty -Name ClusterName -Value $response.datastore.omnistack_cluster_name
+    $c | Add-Member -Type NoteProperty -Name CreatedAt -Value $response.datastore.created_at
+    $c | Add-Member -Type NoteProperty -Name PolicyID -Value $response.datastore.policy_id
+    $c | Add-Member -Type NoteProperty -Name PolicyName -Value $response.datastore.policy_name
+    $c | Add-Member -Type NoteProperty -Name MountDirectory -Value $response.datastore.mount_directory
+    $c | Add-Member -Type NoteProperty -Name HypervisorObjID -Value $response.datastore.hypervisor_object_id
+    $omniDatastore += $c
+    $omniDatastore | % {$_.PSObject.TypeNames.Insert(0,"Simplivity.Datastore") }
+
+    return $omniDatastore
+}
+
 <#
 -----------------------------------------------------------------------------
 TASK FUNCTIONS
