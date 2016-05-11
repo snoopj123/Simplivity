@@ -180,6 +180,93 @@ function Copy-OmniStackVM
     return $omniTask
 }
 
+function Move-OmniStackVM
+{
+<#
+#>
+
+    [CmdletBinding()]
+    param(
+    [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
+    [psobject]$VM,
+    [Parameter(Mandatory=$true,ParameterSetName="Name")]
+    [string]$Name,
+    [Parameter(Mandatory=$true,ParameterSetName="DestinationDatastore")]
+    [string]$DestinationDatastore
+    )
+
+    $DestinationDS = Get-OmniStackDatastores | where {$_.Name -eq $DestinationDatastore}
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/virtual_machines/" + $($VM.ID) + "/move"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $header.Add("Content-Type", "application/vnd.simplivity.v1+json")
+    $body = @{}
+    $body.Add("virtual_machine_name", "$Name")
+    $body.Add("destination_datastore_id", $DestinationDS.Id)
+    $body = $body | ConvertTo-Json
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Post
+    $omniTask = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.task.id
+    $c | Add-Member -Type NoteProperty -Name State -Value $response.task.state
+    $c | Add-Member -Type NoteProperty -Name AffectedObjects -Value $response.task.affected_objects
+    $c | Add-Member -Type NoteProperty -Name ErrorCode -Value $response.task.error_code
+    $c | Add-Member -Type NoteProperty -Name StartTime -Value $response.task.start_time
+    $c | Add-Member -Type NoteProperty -Name EndTime -Value $response.task.end_time
+    $omniTask += $c
+    $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
+
+    return $omniTask
+}
+
+<#
+-----------------------------------------------------------------------------
+DATASTORE FUNCTIONS
+-----------------------------------------------------------------------------
+#>
+
+function Get-OmniStackDatastores
+{
+<#
+#>
+
+    [CmdletBinding()]
+
+    param(
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
+    [string]$Name
+    )
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/datastores"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $body = @{}
+    $body.Add("show_optional_fields", "false")
+    $body.Add("name", "$Name")
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Get
+    $omniDS = @()
+    foreach ($DS in $response.datastores)
+    {
+        $c = New-Object System.Object
+        $c | Add-Member -Type NoteProperty -Name ID -Value $DS.id
+        $c | Add-Member -Type NoteProperty -Name Name -Value $DS.name
+        $c | Add-Member -Type NoteProperty -Name Size -Value $DS.Size
+        $c | Add-Member -Type NoteProperty -Name CreatedAt -Value $DS.created_at
+        $c | Add-Member -Type NoteProperty -Name PolicyID -Value $DS.policy_id
+        $c | Add-Member -Type NoteProperty -Name PolicyName -Value $DS.policy_name
+        $c | Add-Member -Type NoteProperty -Name HypervisorID -Value $DS.hypervisor_object_id
+        $c | Add-Member -Type NoteProperty -Name OmniStackClusterID -Value $DS.omnistack_cluster_id
+        $c | Add-Member -Type NoteProperty -Name OmniStackClusterName -Value $DS.omnistack_cluster_name
+        $omniDS += $c
+    }
+    $omniDS | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Datastore") }
+
+    return $omniDS
+}
+
 <#
 -----------------------------------------------------------------------------
 TASK FUNCTIONS
