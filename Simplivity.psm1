@@ -221,6 +221,55 @@ function Move-OmniStackVM
     return $omniTask
 }
 
+function Set-OmniStackVMBackupPolicy
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+    param(
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
+    [string]$Name,
+	
+	[Parameter(Mandatory=$false,ValueFromPipeline=$true,ParameterSetName="Name")]
+    [psobject]$VM,
+	
+    [Parameter(Mandatory=$true,ParameterSetName="Name")]
+	[Parameter(ParameterSetName="PolicyName")]
+    [string]$PolicyName
+    )
+
+    $PolicyIDTemp = Get-OmniStackBackupPolicy | where {$_.Name -eq $PolicyName}
+	$PolicyID = $PolicyIDTemp.ID
+	
+	if ($vm -eq $null) {
+	$vm = Get-OmniStackVM -Name $Name
+	}
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/virtual_machines/" + $($VM.ID) + "/set_policy"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $header.Add("Content-Type", "application/vnd.simplivity.v1+json")
+    $body = @{}
+    $body.Add("policy_id", "$PolicyID")
+    $body = $body | ConvertTo-Json
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Post
+    $omniTask = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.task.id
+    $c | Add-Member -Type NoteProperty -Name State -Value $response.task.state
+    $c | Add-Member -Type NoteProperty -Name AffectedObjects -Value $response.task.affected_objects
+    $c | Add-Member -Type NoteProperty -Name ErrorCode -Value $response.task.error_code
+    $c | Add-Member -Type NoteProperty -Name StartTime -Value $response.task.start_time
+    $c | Add-Member -Type NoteProperty -Name EndTime -Value $response.task.end_time
+    $omniTask += $c
+    $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
+
+    return $omniTask
+}
+
 <#
 -----------------------------------------------------------------------------
 DATASTORE FUNCTIONS
@@ -305,6 +354,61 @@ function Get-OmniStackDatastore
     return $omniDatastore
 }
 
+function New-OmniStackDatastore
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+    param(
+    [Parameter(Mandatory=$true,ParameterSetName="Name")]
+    [string]$Name,
+    
+	[Parameter(Mandatory=$true,ParameterSetName="Name")]
+	[Parameter(ParameterSetName="Size")]
+    [string]$Size,
+	
+	[Parameter(Mandatory=$true,ParameterSetName="Name")]
+	[Parameter(ParameterSetName="PolicyName")]
+    [string]$PolicyName,
+	
+	[Parameter(Mandatory=$true,ParameterSetName="Name")]
+	[Parameter(ParameterSetName="ClusterName")]
+    [string]$ClusterName
+    )
+
+    $ClusterTemp = Get-OmniStackClusters | where {$_.Name -eq $ClusterName}
+	$ClusterID = $ClusterTemp.Id
+	
+	$PolicyTemp = Get-OmniStackBackupPolicy | where {$_.Name -eq $PolicyName}
+	$PolicyID = $PolicyTemp.Id
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/datastores"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $header.Add("Content-Type", "application/vnd.simplivity.v1+json")
+    $body = @{}
+    $body.Add("name", $Name)
+    $body.Add("omnistack_cluster_id", $ClusterID)
+	$body.Add("size", $Size)
+	$body.Add("policy_id", $PolicyID)
+    $body = $body | ConvertTo-Json
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Post
+    $omniTask = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.task.id
+    $c | Add-Member -Type NoteProperty -Name State -Value $response.task.state
+    $c | Add-Member -Type NoteProperty -Name AffectedObjects -Value $response.task.affected_objects
+    $c | Add-Member -Type NoteProperty -Name ErrorCode -Value $response.task.error_code
+    $c | Add-Member -Type NoteProperty -Name StartTime -Value $response.task.start_time
+    $c | Add-Member -Type NoteProperty -Name EndTime -Value $response.task.end_time
+    $omniTask += $c
+    $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
+
+    return $omniTask
+}
 <#
 -----------------------------------------------------------------------------
 TASK FUNCTIONS
@@ -340,4 +444,200 @@ function Get-OmniStackTask
     $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
 
     return $omniTask
+}
+
+
+<#
+-----------------------------------------------------------------------------
+BACKUP FUNCTIONS
+-----------------------------------------------------------------------------
+#>
+
+function Backup-OmniStackVM
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+    param(
+	
+	[Parameter(Mandatory=$false,ValueFromPipeline=$true)]
+    [psobject]$VM,
+	
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
+    [string]$Name,
+	
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
+	[Parameter(ParameterSetName="DestinationCluster")]
+    [string]$DestinationCluster,
+	
+    [Parameter(Mandatory=$true,ParameterSetName="Name")]
+	[Parameter(ParameterSetName="BackupName")]
+    [string]$BackupName,
+	
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
+	[Parameter(ParameterSetName="Retention")]
+    [string]$Retention,
+	
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
+    [Parameter(ParameterSetName="AppConsistent")]
+	[string]$AppConsistent
+    )
+
+    $DestinationClusterTemp = Get-OmniStackClusters | where {$_.Name -eq $DestinationCluster}
+	$DestinationClusterID = $DestinationClusterTemp.Id
+	
+	if ($vm -eq $null) {
+	$vm = Get-OmniStackVM -Name $Name
+	}
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/virtual_machines/" + $($VM.ID) + "/backup"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $header.Add("Content-Type", "application/vnd.simplivity.v1+json")
+    $body = @{}
+    $body.Add("destination_id", "$DestinationClusterID")
+    $body.Add("app_consistent", "$AppConsistent")
+    $body.Add("backup_name", "$BackupName")
+    $body.Add("retention", "$Retention")
+    $body = $body | ConvertTo-Json
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Post
+    $omniTask = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.task.id
+    $c | Add-Member -Type NoteProperty -Name State -Value $response.task.state
+    $c | Add-Member -Type NoteProperty -Name AffectedObjects -Value $response.task.affected_objects
+    $c | Add-Member -Type NoteProperty -Name ErrorCode -Value $response.task.error_code
+    $c | Add-Member -Type NoteProperty -Name StartTime -Value $response.task.start_time
+    $c | Add-Member -Type NoteProperty -Name EndTime -Value $response.task.end_time
+    $omniTask += $c
+    $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
+
+    return $omniTask
+}
+
+<#
+-----------------------------------------------------------------------------
+OMNISTACK CLUSTER FUNCTIONS
+-----------------------------------------------------------------------------
+#>
+
+function Get-OmniStackClusters
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+
+    param(
+    [Parameter(Mandatory=$false,ParameterSetName="Name")]
+    [string]$Name
+    )
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/omnistack_clusters"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $body = @{}
+    $body.Add("show_optional_fields", "false")
+    $body.Add("name", "$Name")
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Get
+    $omniclusters = @()
+    foreach ($cluster in $response.omnistack_clusters)
+    {
+        $c = New-Object System.Object
+        $c | Add-Member -Type NoteProperty -Name ID -Value $cluster.id
+        $c | Add-Member -Type NoteProperty -Name Name -Value $cluster.name
+        $c | Add-Member -Type NoteProperty -Name AllocatedCapacity -Value $cluster.allocated_capacity
+        $c | Add-Member -Type NoteProperty -Name CompressionRatio -Value $cluster.compression_ratio
+        $c | Add-Member -Type NoteProperty -Name DeduplicationRatio -Value $cluster.deduplication_ratio
+        $c | Add-Member -Type NoteProperty -Name EfficiencyRatio -Value $cluster.efficiency_ratio
+        $c | Add-Member -Type NoteProperty -Name FreeSpace -Value $cluster.free_space
+        $c | Add-Member -Type NoteProperty -Name LocalBackupCapacity -Value $cluster.local_backup_capacity
+        $c | Add-Member -Type NoteProperty -Name Members -Value $cluster.members
+        $c | Add-Member -Type NoteProperty -Name RemoteBackupCapacity -Value $cluster.remote_backup_capacity
+        $c | Add-Member -Type NoteProperty -Name StoredCompressedData -Value $cluster.stored_compressed_data
+        $c | Add-Member -Type NoteProperty -Name StoredUncompressedData -Value $cluster.stored_uncompressed_data
+        $c | Add-Member -Type NoteProperty -Name Type -Value $cluster.type
+        $c | Add-Member -Type NoteProperty -Name UsedCapacity -Value $cluster.used_capacity
+        $c | Add-Member -Type NoteProperty -Name UsedLogicalCapacity -Value $cluster.used_logical_capacity
+        $omniclusters += $c
+    }
+    $omniclusters | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.OmniStackClusters") }
+
+    return $omniclusters
+}
+
+<#
+-----------------------------------------------------------------------------
+POLICY FUNCTIONS
+-----------------------------------------------------------------------------
+#>
+
+
+function New-OmniStackBackupPolicy
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+    param(
+    [Parameter(Mandatory=$true,ParameterSetName="PolicyName")]
+    [string]$PolicyName
+    )
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/policies"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $header.Add("Content-Type", "application/vnd.simplivity.v1+json")
+    $body = @{}
+    $body.Add("name", $PolicyName)
+    $body = $body | ConvertTo-Json
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Body $body -Method Post
+    $omniTask = @()
+    $c = New-Object System.Object
+    $c | Add-Member -Type NoteProperty -Name ID -Value $response.task.id
+    $c | Add-Member -Type NoteProperty -Name State -Value $response.task.state
+    $c | Add-Member -Type NoteProperty -Name AffectedObjects -Value $response.task.affected_objects
+    $c | Add-Member -Type NoteProperty -Name ErrorCode -Value $response.task.error_code
+    $c | Add-Member -Type NoteProperty -Name StartTime -Value $response.task.start_time
+    $c | Add-Member -Type NoteProperty -Name EndTime -Value $response.task.end_time
+    $omniTask += $c
+    $omniTask | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Task") }
+
+    return $omniTask
+}
+
+function Get-OmniStackBackupPolicy
+{
+<#
+
+#>
+
+    [CmdletBinding()]
+
+    $uri = $($Global:OmniStackConnection.Server) + "/api/policies"
+    $header = @{}
+    $header.Add("Authorization", "Bearer $($Global:OmniStackConnection.Token)")
+    $header.Add("Accept", "application/json")
+    $header.Add("Content-Type", "application/vnd.simplivity.v1+json")
+    $response = Invoke-RestMethod -Uri $uri -Headers $header -Method Get
+    $omnipolicy = @()
+    foreach ($policy in $response.policies)
+    {
+        $c = New-Object System.Object
+        $c | Add-Member -Type NoteProperty -Name Name -Value $policy.name
+        $c | Add-Member -Type NoteProperty -Name ID -Value $policy.id
+        $c | Add-Member -Type NoteProperty -Name Rules -Value $policy.rules
+        $omnipolicy += $c
+    }
+    
+    $omnipolicy | % { $_.PSObject.TypeNames.Insert(0,"Simplivity.Policies") }
+
+    return $omnipolicy
 }
