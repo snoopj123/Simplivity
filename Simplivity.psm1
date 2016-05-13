@@ -341,4 +341,3 @@ function Get-OmniStackTask
 
     return $omniTask
 }
-
